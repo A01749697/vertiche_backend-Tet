@@ -1,0 +1,37 @@
+{
+  "name": "tc3005b-2026-g2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node -r dotenv/config dist/index.js",
+    "build:start": "tsc && node -r dotenv/config dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vsosahdz/TC3005B-2026-G2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vsosahdz/TC3005B-2026-G2/issues"
+  },
+  "homepage": "https://github.com/vsosahdz/TC3005B-2026-G2#readme",
+  "dependencies": {
+    "@typegoose/typegoose": "^13.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "mongoose": "^9.2.2",
+    "mysql2": "^3.22.0",
+    "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "typescript": "^6.0.2"
+  }
+}
