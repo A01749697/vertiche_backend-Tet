@@ -2,7 +2,7 @@
 
 Backend REST API para el sistema **Vertiche SortFlow**, una plataforma de clasificación automatizada de prepacks (etiquetas RFID) en un centro de distribución. Gestiona el flujo completo desde la recepción de palets de proveedores hasta el despacho de cajas selladas hacia tiendas destino.
 
-Desarrollado con **Node.js + TypeScript + Sequelize + MySQL (AWS RDS)**, desplegado en **AWS EC2**.
+Desarrollado con **Node.js + TypeScript + Sequelize + MySQL (AWS RDS)** y desplegado en **AWS EC2**.
 
 ---
 
@@ -18,23 +18,25 @@ Desarrollado con **Node.js + TypeScript + Sequelize + MySQL (AWS RDS)**, despleg
 8. [Endpoints disponibles](#endpoints-disponibles)
 9. [Despliegue en EC2](#despliegue-en-ec2)
 10. [Convenciones del código](#convenciones-del-código)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Tecnologías
 
-| Tecnología      | Versión   | Uso                              |
-|-----------------|-----------|----------------------------------|
-| Node.js         | v24+      | Runtime                          |
-| TypeScript      | 5.x       | Lenguaje principal               |
-| Express         | 4.x       | Framework HTTP                   |
-| Sequelize       | 6.x       | ORM para MySQL                   |
-| MySQL 8.4       | 8.4.x     | Motor de base de datos (AWS RDS) |
-| AWS EC2         | —         | Servidor de aplicación           |
-| AWS RDS         | —         | Servidor de base de datos        |
-| PM2             | —         | Process manager en producción    |
-| dotenv          | —         | Manejo de variables de entorno   |
-| cors            | —         | Middleware CORS                  |
+| Tecnología               | Versión   | Uso                                    |
+|--------------------------|-----------|----------------------------------------|
+| Node.js                  | v18+      | Runtime                                |
+| TypeScript               | 6.x       | Lenguaje principal                     |
+| Express                  | 5.x       | Framework HTTP                         |
+| Sequelize                | 6.37.x    | ORM para MySQL                         |
+| mysql2                   | 3.22.x    | Driver de MySQL para Sequelize         |
+| MySQL                    | 8.4.x     | BD relacional (AWS RDS)                |
+| AWS EC2                  | —         | Servidor de aplicación                 |
+| AWS RDS                  | —         | Servidor de MySQL                      |
+| PM2                      | —         | Process manager en producción          |
+| dotenv                   | 17.x      | Variables de entorno                   |
+| cors                     | 2.8.x     | Middleware CORS                        |
 
 ---
 
@@ -48,9 +50,9 @@ backend_vertiche/
 │   │   ├── index.ts              # Exporta PORT y NODE_ENV
 │   │   └── config.ts             # Configuración de Sequelize por environment
 │   ├── provider/
-│   │   └── Server.ts             # Clase Server — inicializa Express, conecta BD
-│   ├── models/
-│   │   ├── index.ts              # Carga todos los modelos y corre associations
+│   │   └── Server.ts             # Clase Server — inicializa Express, conecta MySQL
+│   ├── models/                   # Modelos Sequelize (MySQL)
+│   │   ├── index.ts              # Loader dinámico de modelos + associations
 │   │   ├── ProveedorModel.ts
 │   │   ├── TiendaModel.ts
 │   │   ├── OrdenCompraModel.ts
@@ -65,7 +67,7 @@ backend_vertiche/
 │   │   ├── InspeccionQAModel.ts
 │   │   └── AnomaliaModel.ts
 │   └── controllers/
-│       ├── AbstractController.ts # Clase base con router y prefix
+│       ├── AbstractController.ts
 │       ├── ProveedorController.ts
 │       ├── TiendaController.ts
 │       ├── OrdenCompraController.ts
@@ -79,7 +81,7 @@ backend_vertiche/
 │       ├── PrepackCajaController.ts
 │       ├── InspeccionQAController.ts
 │       └── AnomaliaController.ts
-├── dist/                         # Output compilado de TypeScript (git-ignored)
+├── dist/                         # Output compilado de TS (git-ignored)
 ├── .env                          # Variables de entorno (git-ignored)
 ├── .gitignore
 ├── package.json
@@ -90,20 +92,22 @@ backend_vertiche/
 
 ### Patrón de diseño
 
-- **Server:** clase central que inicializa Express, registra middlewares y controllers, y conecta la BD.
-- **AbstractController:** clase base abstracta con `router` y `prefix`. Cada controller hereda de ella e implementa `initRoutes()`.
-- **Singleton en controllers:** cada controller expone un `static get instance()` para garantizar una sola instancia por proceso.
-- **Modelos Sequelize:** patrón `module.exports = (sequelize, DataTypes) => class XModel extends Model`. El `models/index.ts` los carga dinámicamente con `readdirSync` y ejecuta `associate(db)` en cada uno.
+- **Server:** clase central que inicializa Express, registra middlewares y controllers, y conecta MySQL (Sequelize)
+- **AbstractController:** clase base con `router` y `prefix`. Cada controller hereda e implementa `initRoutes()`.
+- **Singleton en controllers:** cada controller expone `static get instance()` para garantizar una sola instancia.
+- **Modelos Sequelize:** patrón `module.exports = (sequelize, DataTypes) => class XModel extends Model`. El `models/index.ts` los carga dinámicamente con `readdirSync` filtrando archivos `.js` y ejecuta `associate(db)` en cada uno.
 
 ---
 
 ## Base de datos
 
-**Motor:** MySQL 8.4 en AWS RDS  
+### MySQL (AWS RDS) — datos transaccionales
+
+**Motor:** MySQL 8.4  
 **Nombre de BD:** `Vertiche_DB`  
 **ORM:** Sequelize con `timestamps: true` y `freezeTableName: true`
 
-### Entidades y relaciones
+### Entidades y relaciones (MySQL)
 
 ```
 Proveedor ──< OrdenCompra ──< DetalleOrden
@@ -131,7 +135,7 @@ Tag ──< InspeccionQA
 | EstadoPedido   | `PROGRAMADO`, `EN_TRANSITO`, `LLEGADO`, `PROCESADO`, `INCOMPLETO`      |
 | EstadoPalet    | `ESPERANDO`, `EN_RECEPCION`, `EN_QA`, `EN_PACKING`, `COMPLETADO`, `CON_ERROR` |
 | TipoFlujo      | `CROSS_DOCK`, `ALMACENAJE`, `DEVOLUCION`                                |
-| EstadoPrepack  | `REGISTRADO`, `EN_QA`, `APROBADO`, `RECHAZADO`, `EN_CAJA`, `ENVIADO`  |
+| EstadoPrepack  | `REGISTRADO`, `EN_QA`, `APROBADO`, `RECHAZADO`, `EN_CAJA`, `ENVIADO`   |
 | EstadoCaja     | `ABIERTA`, `EN_LLENADO`, `SELLADA`, `ENVIADA`, `ANULADA`               |
 | EtapaRFID      | `RECEPCION`, `QA`, `SORTING`, `PACKING`, `SALIDA`                      |
 | ResultadoQA    | `APROBADO`, `RECHAZADO`, `RETRABAJO`, `PENDIENTE`                       |
@@ -141,14 +145,10 @@ Tag ──< InspeccionQA
 
 ## Requisitos previos
 
-- **Node.js** v18 o superior → [descargar](https://nodejs.org)
-- **npm** v9 o superior (viene con Node)
-- Acceso al servidor **MySQL/RDS** con una BD creada (`Vertiche_DB`)
-- **TypeScript** instalado globalmente (opcional, el proyecto lo instala como devDependency):
-
-```bash
-npm install -g typescript
-```
+- **Node.js** v18 o superior — [descargar](https://nodejs.org)
+- **npm** v9 o superior (incluido con Node)
+- Acceso al servidor **MySQL/RDS** con la BD `Vertiche_DB` creada
+- Git
 
 ---
 
@@ -157,8 +157,8 @@ npm install -g typescript
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/A01749697/vertiche_backend-Tet.git
-cd vertiche_backend-Tet
+git clone https://github.com/vsosahdz/TC3005B-2026-G2.git
+cd TC3005B-2026-G2
 ```
 
 ### 2. Instalar dependencias
@@ -167,43 +167,50 @@ cd vertiche_backend-Tet
 npm install
 ```
 
-### 3. Crear el archivo `.env`
+### 3. Instalar `@types/node` (REQUERIDO)
 
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables (ver sección de variables de entorno):
+El proyecto usa `tsconfig.json` con `"types": []` y `strict: true`. Sin los tipos de Node, código como `process.env`, `__filename`, `__dirname` y `path` no compila. Si no está ya:
 
 ```bash
-cp .env.example .env   # si existe el ejemplo
-# o créalo manualmente
+npm install --save-dev @types/node
 ```
 
-### 4. Compilar TypeScript
+### 4. Crear el archivo `.env`
+
+Ver sección [Variables de entorno](#variables-de-entorno).
+
+### 5. Compilar TypeScript
 
 ```bash
 npm run build
 ```
 
-### 5. Iniciar el servidor
+### 6. Iniciar el servidor
 
 ```bash
 npm run start
 ```
 
-El servidor levanta en `http://localhost:<PORT>`. La primera vez que inicia, Sequelize crea automáticamente las tablas en la BD si no existen (`sync({ force: false })`).
+O en un solo paso:
+
+```bash
+npm run build:start
+```
+
+El servidor levanta en `http://localhost:<PORT>`. La primera vez, Sequelize crea las tablas si no existen (`sync({ force: false })`).
 
 ---
 
 ## Variables de entorno
 
-Crea un archivo `.env` en la raíz del proyecto con estas variables:
+Crea un archivo `.env` en la raíz con estas variables:
 
 ```env
-# Puerto del servidor
+# Servidor
 PORT=8080
-
-# Entorno (development / production)
 NODE_ENV=development
 
-# Base de datos
+# MySQL (RDS)
 DB_HOST=<host-rds>.us-east-1.rds.amazonaws.com
 DB_USER=admin
 DB_PASS=<tu_password>
@@ -211,27 +218,29 @@ DB_NAME=Vertiche_DB
 DB_DIALECT=mysql
 ```
 
-> **Importante:** El archivo `.env` está en `.gitignore` y nunca debe subirse al repositorio. No compartas las credenciales.
+> **Importante:** `.env` está en `.gitignore` y nunca debe subirse al repo. Comparte las credenciales por canal seguro, no por chat público.
 
 ---
 
 ## Scripts disponibles
 
-| Script            | Comando           | Descripción                                         |
-|-------------------|-------------------|-----------------------------------------------------|
-| Compilar          | `npm run build`   | Compila TypeScript a JavaScript en `/dist`           |
-| Iniciar           | `npm run start`   | Ejecuta el servidor desde `/dist` con dotenv         |
-| Build + Start     | `npm run build && npm run start` | Flujo completo de desarrollo    |
+| Script        | Comando                | Descripción                                       |
+|---------------|------------------------|---------------------------------------------------|
+| Build         | `npm run build`        | Compila TypeScript a `/dist`                       |
+| Start         | `npm run start`        | Ejecuta el servidor desde `/dist` con dotenv       |
+| Build + Start | `npm run build:start`  | Compila y arranca en un solo comando               |
+
+> No hay script `dev` con watch. Si haces cambios al código TS, debes correr `npm run build:start` cada vez. Considera agregar `nodemon` + `ts-node` para desarrollo en caliente (ver [Recomendaciones](#troubleshooting)).
 
 ---
 
 ## Endpoints disponibles
 
-La documentación completa de todos los endpoints, campos requeridos, enums válidos y ejemplos de request/response está en **[API_GUIDE.md](./API_GUIDE.md)**.
+Documentación completa con todos los endpoints, campos requeridos, enums válidos y ejemplos de request/response: **[API_GUIDE.md](./API_GUIDE.md)**.
 
 ### Resumen rápido
 
-Todos los recursos siguen el mismo patrón de rutas:
+Todos los recursos siguen el mismo patrón:
 
 | Método | Ruta                        | Acción                  |
 |--------|-----------------------------|-------------------------|
@@ -277,12 +286,12 @@ sudo npm install -g pm2
 ### Pasos de despliegue
 
 ```bash
-# 1. Clonar o actualizar el código
-git clone https://github.com/A01749697/vertiche_backend-Tet.git
-cd vertiche_backend-Tet
+# 1. Clonar el código
+git clone https://github.com/vsosahdz/TC3005B-2026-G2.git
+cd TC3005B-2026-G2
 
 # 2. Configurar variables de entorno
-nano .env   # llenar con las credenciales reales
+nano .env
 
 # 3. Instalar dependencias
 npm install
@@ -290,10 +299,10 @@ npm install
 # 4. Compilar
 npm run build
 
-# 5. Iniciar con PM2
-pm2 start dist/index.js --name vertiche-api -- --require dotenv/config
+# 5. Iniciar con PM2 (cargando dotenv)
+pm2 start dist/index.js --name vertiche-api --node-args="-r dotenv/config"
 
-# 6. Configurar inicio automático al reiniciar la EC2
+# 6. Inicio automático al reiniciar la EC2
 pm2 startup   # copia y pega el comando que imprime
 pm2 save
 ```
@@ -308,7 +317,7 @@ pm2 stop vertiche-api         # detener
 pm2 monit                     # monitor de CPU y RAM
 ```
 
-### Flujo de actualización (nuevo deploy)
+### Flujo de actualización
 
 ```bash
 git pull
@@ -317,7 +326,7 @@ npm run build
 pm2 restart vertiche-api
 ```
 
-### Verificar que el servidor está corriendo
+### Verificar que corre
 
 ```bash
 curl http://localhost:8080/
@@ -328,21 +337,21 @@ curl http://localhost:8080/
 
 ## Convenciones del código
 
-### Modelos
+### Modelos Sequelize
 
-- Nombre de archivo: `<Entidad>Model.ts` en PascalCase
-- `modelName` sin sufijo `Model` (ej. `modelName: 'Proveedor'`)
-- Enums exportados como `export enum` en el mismo archivo del modelo que los usa primero
-- Asociaciones dentro del método `static associate(models: any)`
-- Todos los modelos usan `module.exports = (sequelize, DataTypes) => { ... }` para compatibilidad con el loader dinámico de `models/index.ts`
+- Archivo: `<Entidad>Model.ts` en PascalCase
+- `modelName` sin sufijo `Model` (`'Proveedor'`)
+- Enums exportados como `export enum` en el mismo archivo
+- Asociaciones dentro de `static associate(models: any)`
+- Patrón: `module.exports = (sequelize, DataTypes) => { ... }` para el loader dinámico
 
 ### Controllers
 
-- Patrón Singleton con `private static _instance` y `public static get instance()`
+- Singleton con `private static _instance` y `public static get instance()`
 - Heredan de `AbstractController` e implementan `protected initRoutes()`
-- Métodos de instancia privados nombrados: `get<Acción>`, `post<Acción>`, `put<Acción>`, `delete<Acción>`
-- Todo en `try/catch` con `res.status(500).json(err)` en el catch
-- Verificación de existencia con `findByPk` antes de update/delete, responde 404 si no existe
+- Métodos privados: `get<Acción>`, `post<Acción>`, `put<Acción>`, `delete<Acción>`
+- `try/catch` con `res.status(500).json(err)` en el catch
+- `findByPk` antes de update/delete, responde 404 si no existe
 
 ### Commits
 
@@ -350,8 +359,44 @@ curl http://localhost:8080/
 feat: nueva funcionalidad
 fix: corrección de bug
 docs: cambios en documentación
-refactor: refactorización sin cambio de funcionalidad
-chore: cambios de configuración o dependencias
+refactor: refactor sin cambio funcional
+chore: configuración o dependencias
+```
+
+---
+
+## Troubleshooting
+
+### `Cannot find name 'process'` o `'__dirname'` al compilar
+
+Falta instalar `@types/node`:
+```bash
+npm install --save-dev @types/node
+```
+
+### `Cannot convert undefined or null to object` al iniciar
+
+Algún modelo está intentando hacer `Object.values()` sobre un enum que no se exportó bien. Recuerda: `export enum` en archivos con `module.exports = ...` se rompe cuando se importan entre modelos. Cada modelo debe declarar localmente los enums que usa.
+
+### `Unknown column 'createdAt'` en queries
+
+Tienes `timestamps:true` en `models/index.ts` pero las tablas no tienen esas columnas. O bórralas y deja que Sequelize las recree, o pon `timestamps:false`.
+
+### El server muere al cerrar SSH
+
+Estás corriendo con `npm run start` directo. Usa PM2 (ver [Despliegue](#despliegue-en-ec2)).
+
+### Cambios en código no se reflejan
+
+Tienes que recompilar: `npm run build` cada vez. Para desarrollo más cómodo, considera `nodemon + ts-node`:
+
+```bash
+npm install --save-dev nodemon ts-node
+```
+
+Y agrega a `package.json`:
+```json
+"dev": "nodemon --exec ts-node -r dotenv/config src/index.ts"
 ```
 
 ---
@@ -364,4 +409,4 @@ Semestre: 2026
 
 ---
 
-> Para la documentación completa de todos los endpoints, campos, enums y ejemplos de consumo desde frontend o agentes IA, consulta [API_GUIDE.md](./API_GUIDE.md).
+> Para la documentación completa de endpoints, campos, enums y consumo desde frontend o agentes IA: [API_GUIDE.md](./API_GUIDE.md).
