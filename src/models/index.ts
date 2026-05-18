@@ -18,7 +18,7 @@ if (env==='development') {
       dialect:config.development.dialect,
       host:config.development.host,
       define:{
-        timestamps:false, //Si es True agrega a la tabla 2 atributos CreatedAt, UpdatedAt
+        timestamps:true, //Si es True agrega a la tabla 2 atributos CreatedAt, UpdatedAt
         freezeTableName:true //Evitar pluralizar el nombre de la tabla
       }
     });
