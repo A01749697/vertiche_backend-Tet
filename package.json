@@ -10,22 +10,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vsosahdz/TC3005B-2026-G2.git"
+    "url": "git+https://github.com/A01749697/vertiche_backend-Tet.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/vsosahdz/TC3005B-2026-G2/issues"
+    "url": "https://github.com/A01749697/vertiche_backend-Tet/issues"
   },
-  "homepage": "https://github.com/vsosahdz/TC3005B-2026-G2#readme",
+  "homepage": "https://github.com/A01749697/vertiche_backend-Tet#readme",
   "dependencies": {
-    "@typegoose/typegoose": "^13.2.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
-    "mongoose": "^9.2.2",
     "mysql2": "^3.22.0",
     "sequelize": "^6.37.8"
   },
