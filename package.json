@@ -1,7 +1,7 @@
 {
-  "name": "tc3005b-2026-g2",
+  "name": "vertiche_backend-Tet",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend para el proyecto de Vertiche SortFlow",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
